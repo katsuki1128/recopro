@@ -1,0 +1,83 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>音声認識アプリ</title>
+</head>
+
+<body>
+    <button id="start">話しかける</button>
+    <button id="stop">ストップ</button>
+    <!-- <div id="results"></div> -->
+    <fieldset>
+        <legend>元のテキスト</legend>
+        <div id="originalText"></div>
+    </fieldset>
+
+    <fieldset>
+        <legend>要約されたテキスト</legend>
+        <div id="summarizedText"></div>
+    </fieldset>
+
+    <script>
+        const startButton = document.getElementById('start');
+        const stopButton = document.getElementById('stop');
+        // const resultsDiv = document.getElementById('results');
+        const originalTextDiv = document.getElementById('originalText');
+        const summarizedTextDiv = document.getElementById('summarizedText');
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'ja-JP';
+        recognition.continuous = true;
+        recognition.interimResults = true;  // 途中結果も取得する
+
+        let finalTranscript = ''; // 最終的な結果を保持する変数
+
+        recognition.onresult = (event) => {
+            let speechResult = '';
+            for (const result of event.results) {
+                if (result.isFinal) {
+                    finalTranscript += result[0].transcript;
+                }
+                speechResult += result[0].transcript;
+            }
+            console.log("speechResult", speechResult);
+            originalTextDiv.innerHTML = speechResult;
+        };
+
+        recognition.onerror = (event) => {
+            console.error(event.error);
+        };
+
+        startButton.onclick = () => recognition.start();
+
+
+        stopButton.onclick = () => {
+            recognition.stop();
+            console.log("Sending to server:", finalTranscript); // デバッグ情報
+            sendAudioToServer(finalTranscript);
+
+        };
+
+        const sendAudioToServer = (speechText) => {
+            fetch('/process_audio', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ text: speechText }),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    summarizedTextDiv.innerHTML = data.text;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+    </script>
+</body>
+
+</html>
